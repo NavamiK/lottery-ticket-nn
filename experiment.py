@@ -32,17 +32,17 @@ hidden_size = [30, 10]
 num_classes = 10
 # Set epoch such that num_epochs * num_iterations_per_epoch (num_training/batch_size) is the iteration limit
 # as per paper - 50,000
-num_epochs = 2
-pruning_iterations = 20  # How many iterative pruning steps to perform
+#num_epochs = 2
+num_epochs = 1
+#pruning_iterations = 20  # How many iterative pruning steps to perform
+pruning_iterations = 2  # How many iterative pruning steps to perform
+
 batch_size = 100
 learning_rate = 1e-3
 learning_rate_decay = 0.95
-reg=0.001
-train = True
+reg = 0.001
 
-# weights_size = {'layers.0.weight': hidden_size[0] * input_size,
-#                 'layers.2.weight': hidden_size[1] * hidden_size[0],
-#                 'layers.4.weight': num_classes * hidden_size[1]}
+
 pruning_rates = {'layers.0.weight': 0.2,
                  'layers.2.weight': 0.2,
                  'layers.4.weight': 0.1}
@@ -72,17 +72,12 @@ class MultiLayerPerceptron(nn.Module):
             if 'weight' in name:
                 masks[name] = np.ones(np.prod(param.size()))
         self.masks = masks
-        #self.handle = self.register_backward_hook(zero_grad)
-        #self.presets = presets
 
     def forward(self, x):
         for name, param in self.named_parameters():
             if 'weight' in name:
                 mask_tensor = torch.from_numpy(self.masks[name]).to(device, torch.float).reshape(param.size())
-                 #preset_tensor = model.presets[name].to(device)
                 param.data = param.data * mask_tensor  # flatten
-            # if 'layers.4.weight' in name:
-            #     print('Weights for output layer in forward - immediate \n', param.data)
         # for name, param in self.named_parameters():
         #     if 'layers.4.weight' in name:
         #         print('Weights for output layer in forward \n', param.data)
@@ -153,26 +148,16 @@ def prune(model):
     state_dict = model.state_dict()
     for name, param in state_dict.items():
         if 'weight' in name:
-
             weights = param.cpu().numpy().reshape(-1)
             sorted_weights = np.sort(np.abs(weights[model.masks[name] == 1]))
             cutoff_index = np.round(pruning_rates[name] * sorted_weights.size).astype(int)
             cutoff = sorted_weights[cutoff_index]
-            model.masks[name] = np.where(np.abs(weights) <= cutoff, np.zeros(model.masks[name].shape), model.masks[name])
-            #if 'layers.4.weight' in name:
-                #print('Trained weights for output layer\n', param)
+            model.masks[name] = np.where(np.abs(weights) <= cutoff, np.zeros(model.masks[name].shape),
+                                         model.masks[name])
+            # if 'layers.4.weight' in name:
+            # print('Trained weights for output layer\n', param)
+            # print('Mask for output layer\n', model.masks[name])
 
-            # Moving below to forward pass
-            #mask_tensor = torch.from_numpy(model.masks[name]).to(device, torch.float)
-            #preset_tensor = model.presets[name].to(device)
-            #winning_param = (preset_tensor.reshape(1, -1).squeeze() * mask_tensor).reshape(param.size())  # flatten
-
-            #if 'layers.4.weight' in name:
-                #print('Mask for output layer\n', model.masks[name])
-
-            #if 'layers.4.weight' in name:
-                #print('Winning ticket for output layer\n', winning_param)
-            # Reset to original weights
             state_dict[name].copy_(model.presets[name])
 
 
@@ -192,19 +177,17 @@ def base_experiment():
     test_accuracy = test(model)
     test_accuracy_history.append(test_accuracy)
 
-    sparsity_weights_history = [100]
-
     for iter in range(pruning_iterations):
         # This is the percentage of weights remaining in the network after pruning
-        sparsity_weights = 100 * 0.8**(iter + 1)
         print("Results for pruning round {} with percentage of weights remaining {}"
-              .format(iter + 1, sparsity_weights))
+              .format(iter + 1, 100 * 0.8**(iter + 1)))
         prune(model)
         train(model)
         test_accuracy = test(model)
-        sparsity_weights_history.append(sparsity_weights)
         test_accuracy_history.append(test_accuracy)
-        visualize.plot_test_accuracy(sparsity_weights_history, test_accuracy_history)
+
+    print('Test accuracy history {}'.format(test_accuracy_history))
+    visualize.plot_test_accuracy(test_accuracy_history)
 
 
 def partial_dataset_experiment():
@@ -225,15 +208,16 @@ def partial_dataset_experiment():
 
     for iter in range(pruning_iterations):
         # This is the percentage of weights remaining in the network after pruning
-        sparsity_weights = 100 * 0.8**(iter + 1)
         print("Results for pruning round {} with percentage of weights remaining {}"
-              .format(iter + 1, sparsity_weights))
+              .format(iter + 1, 100 * 0.8**(iter + 1)))
         prune(model)
         train(model)
         test_accuracy = test(model)
-        sparsity_weights_history.append(sparsity_weights)
         test_accuracy_history.append(test_accuracy)
-        visualize.plot_test_accuracy(sparsity_weights_history, test_accuracy_history)
+
+    print('Test accuracy history {}'.format(test_accuracy_history))
+    visualize.plot_test_accuracy(test_accuracy_history)
 
 base_experiment()
+
 print('Using device: %s'%device, ' end time: ' + str(datetime.datetime.now()))
