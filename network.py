@@ -133,4 +133,8 @@ def prune(model):
             # print('Trained weights for output layer\n', param)
             # print('Mask for output layer\n', model.masks[name])
 
+def reset_params(model):
+    state_dict = model.state_dict()
+    for name, param in state_dict.items():
+        if 'weight' in name:
             state_dict[name].copy_(model.presets[name])
