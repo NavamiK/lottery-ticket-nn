@@ -24,7 +24,7 @@ print('Using device: %s'%network.device, ' start time: ' + str(datetime.datetime
 
 def base_experiment():
     n_train, n_valid = 55000, 5000
-    num_pruning_iter = 2  # How many iterative pruning steps to perform
+    num_pruning_iter = 15  # How many iterative pruning steps to perform
 
     print("Running a base experiment with input_size:{}, hidden_size:{}, num_classes:{}, "
           "batch_size:{}, num_epochs:{}, num_pruning_iter:{}, pruning_rates:{}"
@@ -41,24 +41,27 @@ def base_experiment():
         presets[name] = param.clone()
     model.presets = presets
 
-    network.train(model, train_loader, val_loader)
+    early_stop_iteration = network.train(model, train_loader, val_loader)
 
     test_accuracy_history = []
     test_accuracy = network.test(model)
     test_accuracy_history.append(test_accuracy)
+    early_stop_iteration_history = [early_stop_iteration]
 
     for iter in range(num_pruning_iter):
         # This is the percentage of weights remaining in the network after pruning
-        print("Results for pruning round {} with percentage of weights remaining {}"
+        print("\tResults for pruning round {} with percentage of weights remaining {}"
               .format(iter + 1, 100 * 0.8**(iter + 1)))
         network.prune(model)
         network.reset_params(model)
-        network.train(model, train_loader, val_loader)
+        early_stop_iteration = network.train(model, train_loader, val_loader)
+        early_stop_iteration_history.append(early_stop_iteration)
         test_accuracy = network.test(model)
         test_accuracy_history.append(test_accuracy)
 
     print('Test accuracy history {}'.format(test_accuracy_history))
-    visualize.plot_test_accuracy_coarse(test_accuracy_history)
+    print('Early stop iteration history {}'.format(early_stop_iteration_history))
+    #visualize.plot_test_accuracy_coarse(test_accuracy_history)
 
 #base_experiment()
 
@@ -115,12 +118,11 @@ def split_data_experiment():
 #split_data_experiment()
 
 
-def subset_data_experiment():
+def subset_data_experiment(subset_size):
 
-    subset_size = 0.8
     n_train_full, n_valid_full = 55000, 5000
     n_train_subset, n_valid_subset = int(n_train_full * subset_size), int(n_valid_full * subset_size)
-    num_pruning_iter = 27  # How many iterative pruning steps to perform
+    num_pruning_iter = 15  # How many iterative pruning steps to perform
 
     print("Running a subset training experiment with subset_size:{}, input_size:{}, hidden_size:{}, num_classes:{}, "
           "batch_size:{}, num_epochs:{}, num_pruning_iter:{}, pruning_rates:{}"
@@ -148,30 +150,33 @@ def subset_data_experiment():
 
     for iter in range(num_pruning_iter):
         # This is the percentage of weights remaining in the network after pruning
-        print("Results for pruning round {} with percentage of weights remaining {}"
+        print("\tResults for pruning round {} with percentage of weights remaining {}"
               .format(iter + 1, 100 * 0.8**(iter + 1)))
         # prune model after training with subset
         network.prune(model)
         # Reset, retrain the winning ticket on full dataset - perform testing
         network.reset_params(model)
-        print("Retraining the winning ticket on whole dataset - to evaluate trainability and performance "
+        print("\tRetraining the winning ticket on whole dataset - to evaluate trainability and performance "
               "of sparse network ")
         network.train(model, train_loader_full, val_loader_full)
         test_accuracy_full = network.test(model)
         test_accuracy_history_full.append(test_accuracy_full)
         # reset the model, retrain with subset of data - to identify further winning tickets - then perform testing
-        print("Retraining the winning ticket on subset of training dataset - to identify sparse network in next "
+        print("\tRetraining the winning ticket on subset of training dataset - to identify sparse network in next "
               "pruning cycle ")
         network.reset_params(model)
         network.train(model, train_loader_subset, val_loader_subset)
         test_accuracy_subset = network.test(model)
         test_accuracy_history_subset.append(test_accuracy_subset)
 
-    print('Test accuracy history winning ticket on subset of training data {}'.format(test_accuracy_history_subset))
-    print('Test accuracy history after re-training with full training dataset {}'.format(
+    print('Test accuracy history of winning ticket on subset of training data {}'.format(test_accuracy_history_subset))
+    print('Test accuracy history of winning ticket after re-training with full training dataset {}'.format(
         test_accuracy_history_full))
     #visualize.plot_test_accuracy_coarse(test_accuracy_history1, test_accuracy_history2)
 
-subset_data_experiment()
+subset_size_to_evalute = [0.04, 0.1, 0.2, 0.4, 0.8]
+for subset_size in subset_size_to_evalute:
+    subset_data_experiment(subset_size)
+    #pass
 
 print('Using device: %s'%network.device, ' end time: ' + str(datetime.datetime.now()))

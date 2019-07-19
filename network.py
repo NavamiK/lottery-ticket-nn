@@ -13,7 +13,7 @@ num_classes = 10
 batch_size = 100
 # Set epoch such that num_epochs * num_iterations_per_epoch (num_training/batch_size) is the iteration limit
 # as per paper - 50,000
-num_epochs = 10
+num_epochs = 20
 learning_rate = 1e-3
 learning_rate_decay = 0.95
 reg = 0.001
@@ -72,9 +72,16 @@ def validate(model, val_loader):
             predicted = torch.argmax(val_output, dim=1)
             total += val_labels.size(0)
             correct += (predicted == val_labels).sum().item()
-    print('Validation accuracy is: {} %'.format(100 * correct / total))
+        valid_accuracy = 100 * correct / total
+        #print('Validation accuracy is: {} %'.format(100 * correct / total))
+    return valid_accuracy
+
 
 def train(model, train_loader, val_loader):
+    best_model = None
+    best_valid_accuracy = 0
+    val_acc_history = []
+
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate, weight_decay=reg) # UPDATE - move this outside
@@ -92,14 +99,26 @@ def train(model, train_loader, val_loader):
             loss.backward()
             optimizer.step()
 
-            if (i+1) % 100 == 0:
-                print('Epoch [{}/{}], Iteration [{}/{}], Loss: {:.4f}'
-                       .format(epoch+1, num_epochs, i+1, iterations_per_epoch * num_epochs, loss.item()))
-                validate(model, val_loader)
+        current_valid_accuracy = validate(model, val_loader)
+        # Store validation accuracy history for plotting
+        val_acc_history.append(current_valid_accuracy)
 
+        # Find and save best model
+        if best_valid_accuracy < 98.4 and current_valid_accuracy > best_valid_accuracy:
+            best_valid_accuracy = current_valid_accuracy
+            best_model = {
+                'iteration': (epoch + 1) * iterations_per_epoch,
+                'model_state_dict': model.state_dict(),
+                'loss': loss,
+                'accuracy': best_valid_accuracy
+            }
         # Code to update the lr
         lr *= learning_rate_decay
         update_lr(optimizer, lr)
+    print("\t\tValidation accuracy history: {}, \tEarly stopping iteration: {}"
+          .format(val_acc_history, best_model['iteration']))
+    model.load_state_dict(best_model['model_state_dict'])
+    return best_model['iteration']
 
 def test(model):
     with torch.no_grad():
@@ -116,7 +135,7 @@ def test(model):
             if total == 1000:
                 break
         test_accuracy = 100 * correct / total
-        print('Accuracy of the network on the {} test images: {} %'.format(total, test_accuracy))
+        print('\t\tAccuracy of the network on the {} test images: {} %'.format(total, test_accuracy))
         return test_accuracy
 
 def prune(model):

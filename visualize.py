@@ -6,7 +6,7 @@ pruning_rate = 0.2
 def plot_test_accuracy_coarse(test_accuracy_history1, test_accuracy_history_subset):
 
     # Retrieve indexes at which iterative pruning/retraining was performed
-    pruning_iterations = np.arange(max(len(test_accuracy_history1),len(test_accuracy_history1)))
+    pruning_iterations = np.arange(max(len(test_accuracy_history1), len(test_accuracy_history_subset)))
 
     # Plotting in bigger intervals
     weights_sparsity_history = np.around(100 * (1 - pruning_rate) ** (pruning_iterations + 1), decimals=1)
@@ -49,7 +49,7 @@ def plot_test_accuracy_fine(test_accuracy_history1, test_accuracy_history2):
     plt.xlabel('Percentage of weights remaining')
     plt.ylabel('Test accuracy')
     plt.show()
-    plt.savefig('test_results_iter_pruning_fine.png')
+    plt.savefig('test_accuracy.png')
 
 
 def get_x_axis_entries(pruning_iterations):
@@ -87,5 +87,5 @@ accuracy_hist_subset = {
                         "20": [97.5, 98.3, 97.7, 97.8, 97.9, 97.6, 97.3, 98.0, 97.0, 97.2, 97.7, 97.0, 96.6, 97.0, 96.3, 95.0, 95.4, 94.8, 94.5, 93.9, 93.7, 91.9, 89.0, 86.2, 74.6, 56.3, 47.1],
                         "40": [97.7, 97.9, 98.1, 98.0, 98.0, 97.6, 97.5, 97.7, 97.7, 97.6, 97.1, 97.2, 97.3, 96.9, 97.0, 96.9, 96.1, 95.6, 95.3, 94.7, 93.2, 91.9, 91.7, 90.7, 89.5, 86.7, 83.0]
                         }
-plot_test_accuracy_coarse(accuracy_hist, accuracy_hist_subset)
+#plot_test_accuracy_coarse(accuracy_hist, accuracy_hist_subset)
 #plot_test_accuracy_fine(accuracy_hist1, accuracy_hist2)
