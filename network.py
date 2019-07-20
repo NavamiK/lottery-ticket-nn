@@ -13,7 +13,7 @@ num_classes = 10
 batch_size = 100
 # Set epoch such that num_epochs * num_iterations_per_epoch (num_training/batch_size) is the iteration limit
 # as per paper - 50,000
-num_epochs = 20
+num_epochs = 40
 learning_rate = 1e-3
 learning_rate_decay = 0.95
 reg = 0.001
@@ -104,7 +104,7 @@ def train(model, train_loader, val_loader):
         val_acc_history.append(current_valid_accuracy)
 
         # Find and save best model
-        if best_valid_accuracy < 98.4 and current_valid_accuracy > best_valid_accuracy:
+        if current_valid_accuracy > best_valid_accuracy:
             best_valid_accuracy = current_valid_accuracy
             best_model = {
                 'iteration': (epoch + 1) * iterations_per_epoch,

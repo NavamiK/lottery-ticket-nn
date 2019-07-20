@@ -176,7 +176,64 @@ def subset_data_experiment(subset_size):
 
 subset_size_to_evalute = [0.04, 0.1, 0.2, 0.4, 0.8]
 for subset_size in subset_size_to_evalute:
-    subset_data_experiment(subset_size)
-    #pass
+    #subset_data_experiment(subset_size)
+    pass
 
+def ticket_transfer_experiment():
+    n_train_letter, n_valid_letter = 55000, 5000
+    n_train_digit, n_valid_digit = 55000, 8880
+    num_pruning_iter = 1  # How many iterative pruning steps to perform
+
+    print("Running a digit training experiment with digit_size:{}, input_size:{}, hidden_size:{}, num_classes:{}, "
+          "batch_size:{}, num_epochs:{}, num_pruning_iter:{}, pruning_rates:{}"
+          .format(digit_size, network.input_size, network.hidden_size, network.num_classes, network.batch_size,
+                  network.num_epochs,
+                  num_pruning_iter, network.pruning_rates))
+
+    train_loader_letter, val_loader_letter = dataset.init_data_mask_base_expt(n_train_letter, n_valid_letter)
+
+    train_loader_digit, val_loader_digit = dataset.init_data_mask_base_expt(n_train_digit, n_valid_digit)
+
+    model = network.MultiLayerPerceptron().to(network.device)
+    model.apply(weights_init)
+
+    presets = {}
+    for name, param in model.state_dict().items():
+        presets[name] = param.clone()
+    model.presets = presets
+
+    network.train(model, train_loader_digit, val_loader_digit)
+
+    # test_accuracy_digit = network.test(model)
+    test_accuracy_history_letter = []
+    test_accuracy_history_digit = []
+
+    for iter in range(num_pruning_iter):
+        # This is the percentage of weights remaining in the network after pruning
+        print("\tResults for pruning round {} with percentage of weights remaining {}"
+              .format(iter + 1, 100 * 0.8 ** (iter + 1)))
+        # prune model after training with digit
+        network.prune(model)
+        # Reset, retrain the winning ticket on letter dataset - perform testing
+        network.reset_params(model)
+        print("\tRetraining the winning ticket on whole dataset - to evaluate trainability and performance "
+              "of sparse network ")
+        network.train(model, train_loader_letter, val_loader_letter)
+        test_accuracy_letter = network.test(model)
+        test_accuracy_history_letter.append(test_accuracy_letter)
+        # reset the model, retrain with digit of data - to identify further winning tickets - then perform testing
+        print("\tRetraining the winning ticket on digit of training dataset - to identify sparse network in next "
+              "pruning cycle ")
+        network.reset_params(model)
+        network.train(model, train_loader_digit, val_loader_digit)
+        test_accuracy_digit = network.test(model)
+        test_accuracy_history_digit.append(test_accuracy_digit)
+
+    print('Test accuracy history of winning ticket on digit of training data {}'.format(test_accuracy_history_digit))
+    print('Test accuracy history of winning ticket after re-training with letter training dataset {}'.format(
+        test_accuracy_history_letter))
+    # visualize.plot_test_accuracy_coarse(test_accuracy_history1, test_accuracy_history2)
+
+
+ticket_transfer_experiment()
 print('Using device: %s'%network.device, ' end time: ' + str(datetime.datetime.now()))
