@@ -14,3 +14,5 @@ be achieved by using subset (10%) of training data to generate winning tickets w
 retrained on the full dataset. We also discover a winning
 ticket for Shufflenet, a network architecture with 48 layers,
 that makes use of depthwise separable convolutions.
+
+Please find the full report of our work in report.pdf
